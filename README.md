@@ -1,4 +1,4 @@
-![poster]((https://raw.githubusercontent.com/Tarumian/InDesign-HYphen/refs/heads/main/img/Adobe_Indesign_Hyph_Hy.png))
+![poster](https://raw.githubusercontent.com/Tarumian/InDesign-HYphen/refs/heads/main/img/Adobe_Indesign_Hyph_Hy.png)
 ====================================
 # Adobe InDesign Հայերեն Տողադարձիչ
 
