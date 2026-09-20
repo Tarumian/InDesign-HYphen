@@ -15,32 +15,41 @@ echo ""
 
 if [ "$EUID" -ne 0 ]; then
     echo "Անհրաժեշտ են ադմինիստրատորի (sudo) իրավունքներ:"
-    echo "Խնդրում ենք մուտքագրել Ձեր Mac-ի գտնաբառը (Password):"
+    echo "Խնդրում ենք մուտքագրել Ձեր Mac-ի գաղտնաբառը (Password):"
     echo ""
     sudo "$0" "$@"
     exit $?
 fi
 
-while IFS= read -r -d '' PLUGIN_DIR; do
-    APP_NAME=$(echo "$PLUGIN_DIR" | grep -o "Adobe InDesign[^/]*" | head -1)
-    if [ -z "$APP_NAME" ]; then
-        APP_NAME="Adobe InDesign"
-    fi
-    
-    echo "[+] Մշակվում է: $APP_NAME"
-    
-    # 1. Remove hy_AM folder
-    find "$PLUGIN_DIR" -type d -name "hy_AM" -exec rm -rf {} + 2>/dev/null
-    echo "    [OK] hy_AM թղթապանակը հեռացվեց:"
-    
-    # 2. Restore Info.plist from bak
-    find "$PLUGIN_DIR" -name "Info.plist.bak" | while read -r BAK_FILE; do
-        ORIG_FILE="${BAK_FILE%.bak}"
-        cp -f "$BAK_FILE" "$ORIG_FILE"
-        rm -f "$BAK_FILE"
-        echo "    [OK] Info.plist-ը վերականգնվեց նախնական վիճակին:"
+PLUGINS=$(find /Applications -maxdepth 6 -type d -name "AdobeHunspellPlugin*" 2>/dev/null)
+
+if [ -z "$PLUGINS" ]; then
+    echo "Համապատասխան InDesign թղթապանակներ չգտնվեցին:"
+else
+    for PLUGIN_DIR in $PLUGINS; do
+        if [ ! -d "$PLUGIN_DIR" ]; then
+            continue
+        fi
+        APP_NAME=$(echo "$PLUGIN_DIR" | grep -o "Adobe InDesign[^/]*" | head -1)
+        if [ -z "$APP_NAME" ]; then
+            APP_NAME="Adobe InDesign"
+        fi
+        
+        echo "[+] Մշակվում է: $APP_NAME"
+        
+        # 1. Remove hy_AM folder
+        find "$PLUGIN_DIR" -type d -name "hy_AM" -exec rm -rf {} + 2>/dev/null
+        echo "    [OK] hy_AM թղթապանակը հեռացվեց:"
+        
+        # 2. Restore Info.plist from bak
+        find "$PLUGIN_DIR" -name "Info.plist.bak" 2>/dev/null | while read -r BAK_FILE; do
+            ORIG_FILE="${BAK_FILE%.bak}"
+            cp -f "$BAK_FILE" "$ORIG_FILE"
+            rm -f "$BAK_FILE"
+            echo "    [OK] Info.plist-ը վերականգնվեց նախնական վիճակին:"
+        done
     done
-done < <(find /Applications -maxdepth 6 -type d -name "AdobeHunspellPlugin*" -print0 2>/dev/null)
+fi
 
 echo ""
 echo "Ապատեղադրումն ավարտվեց:"

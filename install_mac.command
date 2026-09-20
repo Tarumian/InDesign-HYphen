@@ -14,7 +14,7 @@ echo "=========================================================="
 echo ""
 
 # Switch to script directory
-cd "$( dirname "${BASH_SOURCE[0]}" )"
+cd "$( dirname "$0" )"
 SCRIPT_DIR="$( pwd )"
 DIC_SOURCE="$SCRIPT_DIR/hyph_hy_AM.dic"
 
@@ -37,58 +37,68 @@ fi
 
 echo "Որոնվում են տեղադրված InDesign տարբերակները..."
 
-FOUND_ANY=0
+FOUND_COUNT=0
 
-while IFS= read -r -d '' PLUGIN_DIR; do
-    FOUND_ANY=1
-    APP_NAME=$(echo "$PLUGIN_DIR" | grep -o "Adobe InDesign[^/]*" | head -1)
-    if [ -z "$APP_NAME" ]; then
-        APP_NAME="Adobe InDesign"
-    fi
-    
-    echo ""
-    echo "[+] Գտնվեց: $APP_NAME"
-    echo "    Ուղի: $PLUGIN_DIR"
-    
-    # Locate Dictionaries directory
-    DICT_DIR="$PLUGIN_DIR/Dictionaries"
-    if [ ! -d "$DICT_DIR" ]; then
-        if [ -d "$PLUGIN_DIR/Contents/SharedSupport/Dictionaries" ]; then
-            DICT_DIR="$PLUGIN_DIR/Contents/SharedSupport/Dictionaries"
-        elif [ -d "$PLUGIN_DIR/Contents/Resources/Dictionaries" ]; then
-            DICT_DIR="$PLUGIN_DIR/Contents/Resources/Dictionaries"
+# Search /Applications for Adobe InDesign Hunspell plugins
+PLUGINS=$(find /Applications -maxdepth 6 -type d -name "AdobeHunspellPlugin*" 2>/dev/null)
+
+if [ -z "$PLUGINS" ]; then
+    echo "ՈՒՇԱԴՐՈՒԹՅՈՒՆ: /Applications թղթապանակում InDesign չգտնվեց:"
+else
+    for PLUGIN_DIR in $PLUGINS; do
+        if [ ! -d "$PLUGIN_DIR" ]; then
+            continue
         fi
-    fi
-    mkdir -p "$DICT_DIR"
-    
-    # Create hy_AM folder
-    HY_AM_DIR="$DICT_DIR/hy_AM"
-    mkdir -p "$HY_AM_DIR"
-    
-    # Copy hyph_hy_AM.dic
-    cp -f "$DIC_SOURCE" "$HY_AM_DIR/hyph_hy_AM.dic"
-    chmod 644 "$HY_AM_DIR/hyph_hy_AM.dic"
-    echo "    [OK] hyph_hy_AM.dic բառարանը պատճենվեց:"
-    
-    # Locate Info.plist
-    PLIST_PATH="$PLUGIN_DIR/Info.plist"
-    if [ ! -f "$PLIST_PATH" ]; then
-        if [ -f "$PLUGIN_DIR/Contents/Info.plist" ]; then
-            PLIST_PATH="$PLUGIN_DIR/Contents/Info.plist"
-        elif [ -f "$PLUGIN_DIR/Contents/SharedSupport/Info.plist" ]; then
-            PLIST_PATH="$PLUGIN_DIR/Contents/SharedSupport/Info.plist"
-        fi
-    fi
-    
-    if [ -f "$PLIST_PATH" ]; then
-        BAK_PATH="${PLIST_PATH}.bak"
-        if [ ! -f "$BAK_PATH" ]; then
-            cp -f "$PLIST_PATH" "$BAK_PATH"
-            echo "    [OK] Info.plist.bak պահուստային նիշքը ստեղծվեց:"
+        FOUND_COUNT=$((FOUND_COUNT + 1))
+        
+        APP_NAME=$(echo "$PLUGIN_DIR" | grep -o "Adobe InDesign[^/]*" | head -1)
+        if [ -z "$APP_NAME" ]; then
+            APP_NAME="Adobe InDesign"
         fi
         
-        # Check and update Info.plist via python3
-        python3 -c "
+        echo ""
+        echo "[+] Գտնվեց: $APP_NAME"
+        echo "    Ուղի: $PLUGIN_DIR"
+        
+        # Locate Dictionaries directory
+        DICT_DIR="$PLUGIN_DIR/Dictionaries"
+        if [ ! -d "$DICT_DIR" ]; then
+            if [ -d "$PLUGIN_DIR/Contents/SharedSupport/Dictionaries" ]; then
+                DICT_DIR="$PLUGIN_DIR/Contents/SharedSupport/Dictionaries"
+            elif [ -d "$PLUGIN_DIR/Contents/Resources/Dictionaries" ]; then
+                DICT_DIR="$PLUGIN_DIR/Contents/Resources/Dictionaries"
+            fi
+        fi
+        mkdir -p "$DICT_DIR"
+        
+        # Create hy_AM folder
+        HY_AM_DIR="$DICT_DIR/hy_AM"
+        mkdir -p "$HY_AM_DIR"
+        
+        # Copy hyph_hy_AM.dic
+        cp -f "$DIC_SOURCE" "$HY_AM_DIR/hyph_hy_AM.dic"
+        chmod 644 "$HY_AM_DIR/hyph_hy_AM.dic"
+        echo "    [OK] hyph_hy_AM.dic բառարանը պատճենվեց:"
+        
+        # Locate Info.plist
+        PLIST_PATH="$PLUGIN_DIR/Info.plist"
+        if [ ! -f "$PLIST_PATH" ]; then
+            if [ -f "$PLUGIN_DIR/Contents/Info.plist" ]; then
+                PLIST_PATH="$PLUGIN_DIR/Contents/Info.plist"
+            elif [ -f "$PLUGIN_DIR/Contents/SharedSupport/Info.plist" ]; then
+                PLIST_PATH="$PLUGIN_DIR/Contents/SharedSupport/Info.plist"
+            fi
+        fi
+        
+        if [ -f "$PLIST_PATH" ]; then
+            BAK_PATH="${PLIST_PATH}.bak"
+            if [ ! -f "$BAK_PATH" ]; then
+                cp -f "$PLIST_PATH" "$BAK_PATH"
+                echo "    [OK] Info.plist.bak պահուստային նիշքը ստեղծվեց:"
+            fi
+            
+            # Check and update Info.plist using Python
+            python3 -c "
 import sys, re
 path = '$PLIST_PATH'
 try:
@@ -112,14 +122,11 @@ try:
         print('    [i] Info.plist-ում hy_AM արդեն առկա էր:')
 except Exception as e:
     print('    [!] Սխալ Info.plist թարմացնելիս:', e)
-"
-    fi
-done < <(find /Applications -maxdepth 6 -type d -name "AdobeHunspellPlugin*" -print0 2>/dev/null)
-
-echo ""
-if [ $FOUND_ANY -eq 0 ]; then
-    echo "ՈՒՇԱԴՐՈՒԹՅՈՒՆ: /Applications թղթապանակում InDesign չգտնվեց:"
-else
+" 2>/dev/null
+        fi
+    done
+    
+    echo ""
     echo "=========================================================="
     echo " ՏԵՂԱԴՐՈՒՄԸ ՀԱՋՈՂՈՒԹՅԱՄԲ ԱՎԱՐՏՎԵՑ!                       "
     echo " INSTALLATION COMPLETED SUCCESSFULLY!                    "
